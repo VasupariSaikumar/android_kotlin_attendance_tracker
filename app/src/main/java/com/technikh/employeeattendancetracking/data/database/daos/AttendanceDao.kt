@@ -3,6 +3,7 @@ package com.technikh.employeeattendancetracking.data.database.daos
 
 import androidx.room.Dao
 import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.technikh.employeeattendancetracking.data.database.entities.AttendanceRecord
 import com.technikh.employeeattendancetracking.data.database.entities.DayOfficeHours
@@ -29,11 +30,11 @@ interface AttendanceDao {
     @Query("SELECT * FROM attendance_records ORDER BY timestamp DESC")
     fun getAllRecordsFlow(): Flow<List<AttendanceRecord>>
 
-    @Insert
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(record: AttendanceRecord)
 
     @Query("SELECT * FROM attendance_records WHERE employeeId = :employeeId ORDER BY timestamp DESC")
-    suspend fun getAttendanceByEmployee(employeeId: String): List<AttendanceRecord>
+     fun getAttendanceByEmployee(employeeId: String): Flow<List<AttendanceRecord>>
 
     @Query("SELECT * FROM attendance_records WHERE employeeId = :employeeId ORDER BY timestamp DESC")
     fun getDailyAttendance(employeeId: String): Flow<List<AttendanceRecord>>

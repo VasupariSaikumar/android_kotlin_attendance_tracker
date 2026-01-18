@@ -158,11 +158,11 @@ class AttendanceViewModelV2(
             val lastRecord = attendanceDao.getLastRecord(employeeId)
             _isPunchedIn.value = lastRecord?.punchType == "IN"
 
-            // Fetch All Records
-            val all = attendanceDao.getAttendanceByEmployee(employeeId)
-            _allRecords.value = all
-
             refreshMonthlyChart()
+
+            attendanceDao.getAttendanceByEmployee(employeeId).collect { list ->
+                _allRecords.value = list
+            }
         }
     }
 

@@ -10,6 +10,7 @@ import androidx.camera.core.CameraSelector
 import androidx.camera.view.LifecycleCameraController
 import androidx.camera.view.PreviewView
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -36,14 +37,18 @@ import com.technikh.employeeattendancetracking.utils.rememberBiometricPrompt
 import com.technikh.employeeattendancetracking.utils.launchBiometric
 import com.technikh.employeeattendancetracking.utils.takePhoto
 import com.technikh.employeeattendancetracking.utils.SettingsManager
+import com.technikh.employeeattendancetracking.viewmodel.AttendanceViewModel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun MainAttendanceScreen(
     employeeId: String,
+    viewModel: AttendanceViewModel,
     onNavigateToDashboard: () -> Unit,
     onNavigateHome: () -> Unit
 ) {
+    val status by viewModel.connectionStatus.collectAsState()
+    val isOnline by viewModel.isOnline.collectAsState()
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val database = AppDatabase.getDatabase(context)
@@ -164,6 +169,15 @@ fun MainAttendanceScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(if (isOnline) Color(0xFF4CAF50) else Color(0xFFF44336)) // Green or Red
+                        .padding(8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = status, color = Color.White, fontWeight = FontWeight.Bold)
+                }
                 Text(text = employeeName, fontSize = 28.sp, fontWeight = FontWeight.Bold)
 
                 Text(
@@ -180,7 +194,13 @@ fun MainAttendanceScreen(
 
                 Spacer(modifier = Modifier.height(40.dp))
 
-
+                Button(
+                    onClick = { /* Punch Logic */ },
+                    enabled = isOnline, // <--- DISABLE IF OFFLINE
+                    modifier = Modifier.fillMaxWidth().padding(16.dp)
+                ) {
+                    Text("PUNCH IN")
+                }
                 Button(
                     onClick = {
                         pendingAction = if (isPunchedIn) "OUT" else "IN"

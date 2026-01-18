@@ -31,6 +31,7 @@ import com.patrykandpatrick.vico.compose.chart.Chart
 import com.patrykandpatrick.vico.compose.chart.column.columnChart
 import com.patrykandpatrick.vico.core.entry.ChartEntryModelProducer
 import com.patrykandpatrick.vico.core.entry.FloatEntry
+import com.technikh.employeeattendancetracking.data.database.AppPreferences
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,11 +41,19 @@ fun ReportsDashboard(
 ) {
     val context = LocalContext.current
     val database = AppDatabase.getDatabase(context)
+    val preferences = remember { AppPreferences(context) }
 
+    val repository = remember {
+        com.technikh.employeeattendancetracking.repository.AttendanceRepository(
+            database.attendanceDao(),
+            database.workReasonDao(),
+            null
+        )
+    }
     val viewModel: AttendanceViewModel = viewModel(
         factory = AttendanceViewModel.Factory(
-            database.attendanceDao(),
-            database.workReasonDao()
+            repository ,
+            preferences
         )
     )
 
