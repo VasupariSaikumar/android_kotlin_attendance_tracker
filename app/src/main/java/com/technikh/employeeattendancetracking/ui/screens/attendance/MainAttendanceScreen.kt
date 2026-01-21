@@ -38,6 +38,7 @@ import com.technikh.employeeattendancetracking.utils.launchBiometric
 import com.technikh.employeeattendancetracking.utils.takePhoto
 import com.technikh.employeeattendancetracking.utils.SettingsManager
 import com.technikh.employeeattendancetracking.viewmodel.AttendanceViewModel
+import com.technikh.employeeattendancetracking.repository.AttendanceRepository
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -55,18 +56,34 @@ fun MainAttendanceScreen(
 
 
     val settingsManager = remember { SettingsManager(context) }
+    
+    // Create repository for Supabase sync
+    val repository = remember {
+        AttendanceRepository(
+            attendanceDao = database.attendanceDao(),
+            workReasonDao = database.workReasonDao(),
+            supabase = viewModel.supabaseClient
+        )
+    }
 
-    val viewModel: AttendanceViewModelV2 = viewModel(
+    val viewModelV2: AttendanceViewModelV2 = viewModel(
         factory = AttendanceViewModelV2.Factory(
             database.attendanceDao(),
             database.workReasonDao(),
             database.employeeDao()
         )
     )
+    
+    // Set repository on ViewModel and update when Supabase client changes
+    LaunchedEffect(viewModel.supabaseClient, isOnline) {
+        android.util.Log.d("MainScreen", "Setting repository - Supabase client: ${viewModel.supabaseClient != null}, isOnline: $isOnline")
+        repository.supabase = viewModel.supabaseClient
+        viewModelV2.setRepository(repository)
+    }
 
     BackHandler { onNavigateHome() }
 
-    val lastRecord by viewModel.getLiveStatus(employeeId).collectAsState(initial = null)
+    val lastRecord by viewModelV2.getLiveStatus(employeeId).collectAsState(initial = null)
 
 
     val isPunchedIn = lastRecord?.punchType == "IN"
@@ -125,7 +142,7 @@ fun MainAttendanceScreen(
                     if (pendingAction == "OUT") {
                         showPunchOutDialog = true
                     } else {
-                        viewModel.punchIn(employeeId, path)
+                        viewModelV2.punchIn(employeeId, path)
                         Toast.makeText(context, "Punch In Successful!", Toast.LENGTH_SHORT).show()
                         onNavigateHome()
                     }
@@ -281,7 +298,7 @@ fun MainAttendanceScreen(
                 PunchOutReasonDialog(
                     onDismiss = { showPunchOutDialog = false },
                     onConfirm = { reason, isOffice, workReason ->
-                        viewModel.punchOut(employeeId, reason, isOffice, workReason, tempSelfiePath)
+                        viewModelV2.punchOut(employeeId, reason, isOffice, workReason, tempSelfiePath)
                         showPunchOutDialog = false
                         Toast.makeText(context, "Punch Out Successful!", Toast.LENGTH_SHORT).show()
                         onNavigateHome()

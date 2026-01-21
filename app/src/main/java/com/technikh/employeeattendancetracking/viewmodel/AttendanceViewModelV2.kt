@@ -9,12 +9,22 @@ import java.text.SimpleDateFormat
 import java.util.*
 import com.technikh.employeeattendancetracking.data.database.daos.*
 import com.technikh.employeeattendancetracking.data.database.entities.*
+import com.technikh.employeeattendancetracking.repository.AttendanceRepository
 
 class AttendanceViewModelV2(
     private val attendanceDao: AttendanceDao,
     private val workReasonDao: WorkReasonDao,
     private val employeeDao: EmployeeDao
 ) : ViewModel() {
+
+    // Repository for Supabase sync - set after ViewModel creation
+    var repository: AttendanceRepository? = null
+        private set
+    
+    fun setRepository(repo: AttendanceRepository) {
+        android.util.Log.d("VM2_DEBUG", "setRepository called - repo.supabase is null? ${repo.supabase == null}")
+        repository = repo
+    }
 
     // --- HOME SCREEN FEATURES ---
 
@@ -233,17 +243,41 @@ class AttendanceViewModelV2(
 
     fun punchIn(employeeId: String, selfiePath: String?) {
         viewModelScope.launch {
-            attendanceDao.insert(AttendanceRecord(employeeId = employeeId, punchType = "IN", timestamp = System.currentTimeMillis(), selfiePath = selfiePath))
+            val timestamp = System.currentTimeMillis()
+            attendanceDao.insert(AttendanceRecord(employeeId = employeeId, punchType = "IN", timestamp = timestamp, selfiePath = selfiePath))
             _isPunchedIn.value = true
+            
+            // Sync to Supabase
+            val repo = repository
+            android.util.Log.d("VM2_DEBUG", "punchIn: repository is null? ${repo == null}")
+            if (repo != null) {
+                android.util.Log.d("VM2_DEBUG", "punchIn: Calling syncAttendanceToSupabase")
+                repo.syncAttendanceToSupabase(employeeId, "IN", timestamp, selfiePath)
+            } else {
+                android.util.Log.e("VM2_DEBUG", "punchIn: REPOSITORY IS NULL - SYNC SKIPPED!")
+            }
+            
             loadDashboardData(employeeId)
         }
     }
 
     fun punchOut(employeeId: String, reason: String, isOfficeWork: Boolean, workReason: String?, selfiePath: String?) {
         viewModelScope.launch {
-            attendanceDao.insert(AttendanceRecord(employeeId = employeeId, punchType = "OUT", timestamp = System.currentTimeMillis(), reason = reason, isOfficeWork = isOfficeWork, workReason = workReason, selfiePath = selfiePath))
+            val timestamp = System.currentTimeMillis()
+            attendanceDao.insert(AttendanceRecord(employeeId = employeeId, punchType = "OUT", timestamp = timestamp, reason = reason, isOfficeWork = isOfficeWork, workReason = workReason, selfiePath = selfiePath))
             if (isOfficeWork && !workReason.isNullOrBlank()) saveNewReason(workReason)
             _isPunchedIn.value = false
+            
+            // Sync to Supabase
+            val repo = repository
+            android.util.Log.d("VM2_DEBUG", "punchOut: repository is null? ${repo == null}")
+            if (repo != null) {
+                android.util.Log.d("VM2_DEBUG", "punchOut: Calling syncAttendanceToSupabase")
+                repo.syncAttendanceToSupabase(employeeId, "OUT", timestamp, selfiePath)
+            } else {
+                android.util.Log.e("VM2_DEBUG", "punchOut: REPOSITORY IS NULL - SYNC SKIPPED!")
+            }
+            
             loadDashboardData(employeeId)
         }
     }
