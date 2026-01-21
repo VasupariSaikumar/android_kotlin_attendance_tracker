@@ -1,7 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     id("org.jetbrains.kotlin.android")
-
+    id("org.jetbrains.kotlin.plugin.serialization") version "1.9.0"
     id("kotlin-kapt")
 }
 
@@ -50,6 +50,17 @@ android {
 }
 
 dependencies {
+    // DataStore (For saving Settings like IP/Key)
+    implementation("androidx.datastore:datastore-preferences:1.0.0")
+
+    // Supabase
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:2.3.0")
+    implementation("io.github.jan-tennert.supabase:storage-kt:2.3.0")
+    implementation("io.ktor:ktor-client-okhttp:2.3.0")
+    
+    // Kotlin Serialization
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.0")
+
     implementation("com.google.android.material:material:1.11.0")
 
     implementation("androidx.core:core-ktx:1.12.0")
