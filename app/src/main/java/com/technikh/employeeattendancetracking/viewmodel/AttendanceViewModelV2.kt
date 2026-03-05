@@ -10,6 +10,8 @@ import java.util.*
 import com.technikh.employeeattendancetracking.data.database.daos.*
 import com.technikh.employeeattendancetracking.data.database.entities.*
 import com.technikh.employeeattendancetracking.repository.AttendanceRepository
+import com.technikh.employeeattendancetracking.data.database.entities.ApprovalItem
+import com.technikh.employeeattendancetracking.data.database.entities.ApprovalType
 
 class AttendanceViewModelV2(
     private val attendanceDao: AttendanceDao,
@@ -142,6 +144,16 @@ class AttendanceViewModelV2(
     // --- WORK REASONS ---
     private val _workReasonSuggestions = MutableStateFlow<List<String>>(emptyList())
     val workReasonSuggestions = _workReasonSuggestions.asStateFlow()
+
+    // --- EMPLOYER: PENDING APPROVALS ---
+    private val _pendingApprovals = MutableStateFlow<List<ApprovalItem>>(emptyList())
+    val pendingApprovals = _pendingApprovals.asStateFlow()
+
+    private val _approvalsLoading = MutableStateFlow(false)
+    val approvalsLoading = _approvalsLoading.asStateFlow()
+
+    private val _approvalsError = MutableStateFlow<String?>(null)
+    val approvalsError = _approvalsError.asStateFlow()
 
     init {
         viewModelScope.launch {
@@ -279,6 +291,47 @@ class AttendanceViewModelV2(
         viewModelScope.launch {
             if (query.isBlank()) _workReasonSuggestions.value = emptyList()
             else _workReasonSuggestions.value = workReasonDao.searchReasons("%$query%").map { it.reason }
+        }
+    }
+
+    // =============================================================
+    // EMPLOYER: Approval Actions
+    // =============================================================
+
+    fun loadPendingApprovals() {
+        viewModelScope.launch {
+            _approvalsLoading.value = true
+            _approvalsError.value = null
+            try {
+                val repo = repository
+                if (repo == null) {
+                    _approvalsError.value = "Supabase not configured. Go to Settings and save your server config."
+                    _pendingApprovals.value = emptyList()
+                } else {
+                    _pendingApprovals.value = repo.fetchPendingApprovals()
+                    if (_pendingApprovals.value.isEmpty()) {
+                        _approvalsError.value = null  // No error, just empty
+                    }
+                }
+            } catch (e: Exception) {
+                _approvalsError.value = "Failed to load approvals: ${e.message}"
+            } finally {
+                _approvalsLoading.value = false
+            }
+        }
+    }
+
+    fun approveRequest(item: ApprovalItem) {
+        viewModelScope.launch {
+            repository?.reviewRequest(item.type, item.id, "approved")
+            loadPendingApprovals()  // Refresh after action
+        }
+    }
+
+    fun rejectRequest(item: ApprovalItem) {
+        viewModelScope.launch {
+            repository?.reviewRequest(item.type, item.id, "rejected")
+            loadPendingApprovals()  // Refresh after action
         }
     }
 

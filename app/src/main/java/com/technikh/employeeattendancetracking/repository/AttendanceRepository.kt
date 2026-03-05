@@ -7,6 +7,11 @@ import com.technikh.employeeattendancetracking.data.database.entities.Attendance
 import com.technikh.employeeattendancetracking.data.database.entities.OfficeWorkReason
 import com.technikh.employeeattendancetracking.data.database.entities.SupabaseAttendanceRecord
 import com.technikh.employeeattendancetracking.data.database.entities.PunchOutUpdate
+import com.technikh.employeeattendancetracking.data.database.entities.ApprovalItem
+import com.technikh.employeeattendancetracking.data.database.entities.ApprovalType
+import com.technikh.employeeattendancetracking.data.database.entities.GoogleAccessRequest
+import com.technikh.employeeattendancetracking.data.database.entities.DeviceAccessRequest
+import com.technikh.employeeattendancetracking.data.database.entities.ApprovalStatusUpdate
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
@@ -145,6 +150,7 @@ class AttendanceRepository(
         }
     }
 
+
     suspend fun searchReasons(query: String): List<OfficeWorkReason> {
         return workReasonDao.searchReasons(query)
     }
@@ -155,5 +161,109 @@ class AttendanceRepository(
 
     suspend fun incrementReasonUsage(reason: String, timestamp: Long) {
         workReasonDao.incrementUsage(reason, timestamp)
+    }
+
+    // =============================================================
+    // EMPLOYER: Approval Workflow Methods
+    // =============================================================
+
+    /**
+     * Fetches all PENDING approval requests from both Supabase tables.
+     * Returns a combined list of [ApprovalItem] for the employer dashboard.
+     */
+    suspend fun fetchPendingApprovals(): List<ApprovalItem> {
+        val client = supabase ?: run {
+            Log.w("REPO", "Supabase not configured – cannot fetch approvals")
+            return emptyList()
+        }
+
+        val results = mutableListOf<ApprovalItem>()
+
+        try {
+            val emailRequests = client
+                .from("employee_google_access")
+                .select {
+                    filter { eq("status", "pending") }
+                }
+                .decodeList<GoogleAccessRequest>()
+
+            emailRequests.forEach { req ->
+                results.add(
+                    ApprovalItem(
+                        id = req.id,
+                        employeeId = req.employeeId,
+                        type = ApprovalType.EMAIL,
+                        value = req.googleEmail,
+                        status = req.status,
+                        requestedAt = req.requestedAt,
+                        reviewedAt = req.reviewedAt,
+                        reviewedBy = req.reviewedBy
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("REPO", "Failed to fetch email approvals: ${e.message}")
+        }
+
+        try {
+            val deviceRequests = client
+                .from("employee_device_access")
+                .select {
+                    filter { eq("status", "pending") }
+                }
+                .decodeList<DeviceAccessRequest>()
+
+            deviceRequests.forEach { req ->
+                results.add(
+                    ApprovalItem(
+                        id = req.id,
+                        employeeId = req.employeeId,
+                        type = ApprovalType.DEVICE,
+                        value = req.deviceIdHash,
+                        status = req.status,
+                        requestedAt = req.requestedAt,
+                        reviewedAt = req.reviewedAt,
+                        reviewedBy = req.reviewedBy
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Log.e("REPO", "Failed to fetch device approvals: ${e.message}")
+        }
+
+        Log.d("REPO", "Fetched ${results.size} pending approvals")
+        return results
+    }
+
+    /**
+     * Updates the status of an approval request (approve or reject).
+     * @param approvalType "email" → `employee_google_access` | "device" → `employee_device_access`
+     * @param requestId    UUID of the row to update
+     * @param newStatus    "approved" or "rejected"
+     */
+    suspend fun reviewRequest(approvalType: ApprovalType, requestId: String, newStatus: String) {
+        val client = supabase ?: run {
+            Log.w("REPO", "Supabase not configured – cannot review request")
+            return
+        }
+
+        val table = when (approvalType) {
+            ApprovalType.EMAIL  -> "employee_google_access"
+            ApprovalType.DEVICE -> "employee_device_access"
+        }
+
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault())
+        val now = dateFormat.format(Date())
+
+        try {
+            client.from(table).update(
+                ApprovalStatusUpdate(status = newStatus, reviewedAt = now)
+            ) {
+                filter { eq("id", requestId) }
+            }
+            Log.d("REPO", "Request $requestId in $table set to $newStatus")
+        } catch (e: Exception) {
+            Log.e("REPO", "Failed to review request $requestId: ${e.message}")
+        }
     }
 }
