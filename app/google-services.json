@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1022003008492",
+    "project_id": "attendanceapp-ff4c2",
+    "storage_bucket": "attendanceapp-ff4c2.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1022003008492:android:5cb25ce9d1fd639a9b26c9",
+        "android_client_info": {
+          "package_name": "com.technikh.employeeattendancetracking.data.database"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4fJb1U4TIxKBjh9MczwGBsniw2v5uVsI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

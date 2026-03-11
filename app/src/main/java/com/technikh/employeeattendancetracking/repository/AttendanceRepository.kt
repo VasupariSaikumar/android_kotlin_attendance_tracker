@@ -266,4 +266,118 @@ class AttendanceRepository(
             Log.e("REPO", "Failed to review request $requestId: ${e.message}")
         }
     }
+
+    // =============================================================
+    // EMPLOYEE: Submit Approval Requests
+    // =============================================================
+
+    /**
+     * Employee submits their Google email for employer approval.
+     * Only submits if no pending/approved request already exists.
+     */
+    suspend fun submitEmailApprovalRequest(employeeId: String, googleEmail: String): Boolean {
+        val client = supabase ?: return false
+        return try {
+            // Check if already submitted
+            val existing = client.from("employee_google_access")
+                .select { filter { eq("google_email", googleEmail) } }
+                .decodeList<GoogleAccessRequest>()
+            if (existing.any { it.status == "approved" || it.status == "pending" }) {
+                Log.d("REPO", "Email request already exists: ${existing.first().status}")
+                return false
+            }
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault())
+            client.from("employee_google_access").insert(
+                GoogleAccessRequest(
+                    employeeId = employeeId,
+                    googleEmail = googleEmail,
+                    status = "pending",
+                    requestedAt = dateFormat.format(Date())
+                )
+            )
+            Log.d("REPO", "Email approval request submitted for $googleEmail")
+            true
+        } catch (e: Exception) {
+            Log.e("REPO", "Failed to submit email request: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Employee submits their device ID hash for employer approval.
+     */
+    suspend fun submitDeviceApprovalRequest(employeeId: String, deviceIdHash: String): Boolean {
+        val client = supabase ?: return false
+        return try {
+            val existing = client.from("employee_device_access")
+                .select { filter { eq("device_id_hash", deviceIdHash) } }
+                .decodeList<DeviceAccessRequest>()
+            if (existing.any { it.status == "approved" || it.status == "pending" }) {
+                Log.d("REPO", "Device request already exists: ${existing.first().status}")
+                return false
+            }
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault())
+            client.from("employee_device_access").insert(
+                DeviceAccessRequest(
+                    employeeId = employeeId,
+                    deviceIdHash = deviceIdHash,
+                    status = "pending",
+                    requestedAt = dateFormat.format(Date())
+                )
+            )
+            Log.d("REPO", "Device approval request submitted for hash $deviceIdHash")
+            true
+        } catch (e: Exception) {
+            Log.e("REPO", "Failed to submit device request: ${e.message}")
+            false
+        }
+    }
+
+    /**
+     * Checks the approval status of a given Google email.
+     * Returns: "approved", "pending", "rejected", or "none" (never submitted).
+     */
+    suspend fun checkEmailApprovalStatus(googleEmail: String): String {
+        val client = supabase ?: return "none"
+        return try {
+            val results = client.from("employee_google_access")
+                .select { filter { eq("google_email", googleEmail) } }
+                .decodeList<GoogleAccessRequest>()
+            results.maxByOrNull { it.requestedAt }?.status ?: "none"
+        } catch (e: Exception) {
+            Log.e("REPO", "Failed to check email status: ${e.message}")
+            "none"
+        }
+    }
+
+    /**
+     * Checks the approval status of a given device ID hash.
+     */
+    suspend fun checkDeviceApprovalStatus(deviceIdHash: String): String {
+        val client = supabase ?: return "none"
+        return try {
+            val results = client.from("employee_device_access")
+                .select { filter { eq("device_id_hash", deviceIdHash) } }
+                .decodeList<DeviceAccessRequest>()
+            results.maxByOrNull { it.requestedAt }?.status ?: "none"
+        } catch (e: Exception) {
+            Log.e("REPO", "Failed to check device status: ${e.message}")
+            "none"
+        }
+    }
+
+    /**
+     * Checks if the Supabase server is reachable (used as intranet check).
+     */
+    suspend fun isIntranetReachable(): Boolean {
+        val client = supabase ?: return false
+        return try {
+            // Simple ping: count rows in attendance table
+            client.from("attendance").select { limit(1) }
+            true
+        } catch (e: Exception) {
+            Log.w("REPO", "Intranet not reachable: ${e.message}")
+            false
+        }
+    }
 }

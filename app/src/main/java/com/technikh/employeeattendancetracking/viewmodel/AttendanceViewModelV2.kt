@@ -12,6 +12,10 @@ import com.technikh.employeeattendancetracking.data.database.entities.*
 import com.technikh.employeeattendancetracking.repository.AttendanceRepository
 import com.technikh.employeeattendancetracking.data.database.entities.ApprovalItem
 import com.technikh.employeeattendancetracking.data.database.entities.ApprovalType
+import com.technikh.employeeattendancetracking.data.database.entities.PunchEligibility
+import com.technikh.employeeattendancetracking.data.database.entities.ApprovalStatus
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.auth.FirebaseUser
 
 class AttendanceViewModelV2(
     private val attendanceDao: AttendanceDao,
@@ -155,9 +159,26 @@ class AttendanceViewModelV2(
     private val _approvalsError = MutableStateFlow<String?>(null)
     val approvalsError = _approvalsError.asStateFlow()
 
+    // --- PERSONAL PHONE: Firebase Auth + Punch Gating ---
+    private val _currentFirebaseUser = MutableStateFlow<FirebaseUser?>(FirebaseAuth.getInstance().currentUser)
+    val currentFirebaseUser = _currentFirebaseUser.asStateFlow()
+
+    private val _punchEligibility = MutableStateFlow(PunchEligibility())
+    val punchEligibility = _punchEligibility.asStateFlow()
+
+    private val _eligibilityLoading = MutableStateFlow(false)
+    val eligibilityLoading = _eligibilityLoading.asStateFlow()
+
+    private val _approvalSubmitResult = MutableStateFlow<String?>(null)
+    val approvalSubmitResult = _approvalSubmitResult.asStateFlow()
+
     init {
         viewModelScope.launch {
             employeeDao.getAllEmployees().collect { list -> _employees.value = list }
+        }
+        // Listen to Firebase auth state changes
+        FirebaseAuth.getInstance().addAuthStateListener { auth ->
+            _currentFirebaseUser.value = auth.currentUser
         }
     }
 
@@ -331,8 +352,97 @@ class AttendanceViewModelV2(
     fun rejectRequest(item: ApprovalItem) {
         viewModelScope.launch {
             repository?.reviewRequest(item.type, item.id, "rejected")
-            loadPendingApprovals()  // Refresh after action
+            loadPendingApprovals()
         }
+    }
+
+    // =============================================================
+    // PERSONAL PHONE: Punch Eligibility Gating
+    // =============================================================
+
+    /**
+     * Runs all 4 checks and updates [punchEligibility] StateFlow.
+     * Called when the employee opens the personal phone punch screen.
+     * @param deviceIdHash SHA-256 hash of device ANDROID_ID
+     */
+    fun checkPersonalPhonePunchEligibility(deviceIdHash: String) {
+        viewModelScope.launch {
+            _eligibilityLoading.value = true
+            val firebaseUser = FirebaseAuth.getInstance().currentUser
+            if (firebaseUser == null) {
+                _punchEligibility.value = PunchEligibility(isSignedIn = false)
+                _eligibilityLoading.value = false
+                return@launch
+            }
+            val email = firebaseUser.email ?: ""
+            val repo = repository
+            if (repo == null) {
+                _punchEligibility.value = PunchEligibility(
+                    isSignedIn = true,
+                    isIntranetReachable = false,
+                    googleEmail = email,
+                    deviceIdHash = deviceIdHash
+                )
+                _eligibilityLoading.value = false
+                return@launch
+            }
+            val intranetOk = repo.isIntranetReachable()
+            val emailStatusStr = if (intranetOk) repo.checkEmailApprovalStatus(email) else "unknown"
+            val deviceStatusStr = if (intranetOk) repo.checkDeviceApprovalStatus(deviceIdHash) else "unknown"
+
+            fun String.toApprovalStatus() = when (this) {
+                "approved" -> ApprovalStatus.APPROVED
+                "pending"  -> ApprovalStatus.PENDING
+                "rejected" -> ApprovalStatus.REJECTED
+                "none"     -> ApprovalStatus.NONE
+                else       -> ApprovalStatus.UNKNOWN
+            }
+
+            _punchEligibility.value = PunchEligibility(
+                isSignedIn = true,
+                isIntranetReachable = intranetOk,
+                emailApprovalStatus = emailStatusStr.toApprovalStatus(),
+                deviceApprovalStatus = deviceStatusStr.toApprovalStatus(),
+                googleEmail = email,
+                deviceIdHash = deviceIdHash
+            )
+            _eligibilityLoading.value = false
+        }
+    }
+
+    /**
+     * Submits approval requests for both email and device in one tap.
+     * Updates [approvalSubmitResult] with a user-facing message.
+     */
+    fun submitApprovalRequests(employeeId: String, deviceIdHash: String) {
+        viewModelScope.launch {
+            val repo = repository ?: run {
+                _approvalSubmitResult.value = "Not connected to server. Connect to office WiFi first."
+                return@launch
+            }
+            val email = FirebaseAuth.getInstance().currentUser?.email ?: run {
+                _approvalSubmitResult.value = "Please sign in with Google first."
+                return@launch
+            }
+            val emailSent = repo.submitEmailApprovalRequest(employeeId, email)
+            val deviceSent = repo.submitDeviceApprovalRequest(employeeId, deviceIdHash)
+            _approvalSubmitResult.value = when {
+                emailSent && deviceSent -> "✅ Approval requests sent for email and device!"
+                emailSent              -> "✅ Email request sent. Device request already submitted."
+                deviceSent             -> "✅ Device request sent. Email request already submitted."
+                else                   -> "ℹ️ Requests already submitted. Awaiting employer approval."
+            }
+            // Re-check eligibility after submitting
+            checkPersonalPhonePunchEligibility(deviceIdHash)
+        }
+    }
+
+    fun clearApprovalSubmitResult() { _approvalSubmitResult.value = null }
+
+    fun signOutGoogle() {
+        FirebaseAuth.getInstance().signOut()
+        _currentFirebaseUser.value = null
+        _punchEligibility.value = PunchEligibility()
     }
 
     private fun normalizeToMinute(timeMillis: Long): Long {
