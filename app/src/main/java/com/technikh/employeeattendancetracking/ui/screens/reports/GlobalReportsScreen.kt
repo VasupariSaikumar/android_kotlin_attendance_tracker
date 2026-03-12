@@ -32,16 +32,32 @@ import java.util.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GlobalReportsScreen(
+    parentViewModel: com.technikh.employeeattendancetracking.viewmodel.AttendanceViewModel,
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
     val database = AppDatabase.getDatabase(context)
+    
+    val repository = remember {
+        com.technikh.employeeattendancetracking.repository.AttendanceRepository(
+            database.attendanceDao(), database.workReasonDao(), null
+        )
+    }
+
     val viewModel: AttendanceViewModelV2 = viewModel(
-        factory = AttendanceViewModelV2.Factory(database.attendanceDao(), database.workReasonDao(), database.employeeDao())
+        factory = AttendanceViewModelV2.Factory(
+            database.attendanceDao(), 
+            database.workReasonDao(), 
+            database.employeeDao(), 
+            repository
+        )
     )
 
-    // Load ALL data when screen opens
-    LaunchedEffect(Unit) { viewModel.loadGlobalReportData() }
+    LaunchedEffect(parentViewModel.supabaseClient) { 
+        repository.supabase = parentViewModel.supabaseClient
+        viewModel.repository = repository
+        viewModel.loadGlobalReportData() 
+    }
 
     BackHandler { onBack() }
 

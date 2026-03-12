@@ -74,9 +74,9 @@ class MainActivity : FragmentActivity() {
                         onBack = { currentScreen = "login" })
                 }
 
-                // --- NEW SCREEN CASE ---
                 "global_reports" -> {
                     GlobalReportsScreen(
+                        parentViewModel = attendanceViewModel,
                         onBack = { currentScreen = "login" }
                     )
                 }
