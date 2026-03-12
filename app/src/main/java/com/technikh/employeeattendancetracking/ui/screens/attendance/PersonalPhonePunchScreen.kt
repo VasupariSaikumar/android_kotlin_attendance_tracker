@@ -32,8 +32,9 @@ import com.technikh.employeeattendancetracking.data.database.entities.ApprovalSt
 import com.technikh.employeeattendancetracking.data.database.entities.PunchEligibility
 import com.technikh.employeeattendancetracking.utils.DeviceUtils
 import com.technikh.employeeattendancetracking.viewmodel.AttendanceViewModelV2
-// Replace with your actual Web Client ID from google-services.json
-private const val WEB_CLIENT_ID = "YOUR_WEB_CLIENT_ID"
+
+// Extracted from google-services.json (oauth_client type 3)
+private const val WEB_CLIENT_ID = "1022003008492-3vs4nkdk7bq7jkoi5rt0tsid8tb86n68.apps.googleusercontent.com"
 
 /**
  * Personal phone punch screen.
