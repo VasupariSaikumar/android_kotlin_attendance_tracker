@@ -78,7 +78,10 @@ class AttendanceRepository(
         employeeId: String,
         punchType: String,
         timestamp: Long,
-        selfiePath: String?
+        selfiePath: String?,
+        punchSource: String = "shared_device",
+        googleEmail: String? = null,
+        deviceIdHash: String? = null
     ) {
         Log.d("REPO", "syncAttendanceToSupabase called - employeeId: $employeeId, punchType: $punchType, selfiePath: $selfiePath")
         
@@ -112,6 +115,9 @@ class AttendanceRepository(
                     punchInTime = timeString,
                     punchOutTime = null,
                     imageUrl = imageUrl,
+                    punchSource = punchSource,
+                    googleEmail = googleEmail,
+                    deviceIdHash = deviceIdHash,
                     isSynced = true
                 )
                 try {
@@ -128,6 +134,9 @@ class AttendanceRepository(
                 val updateData = PunchOutUpdate(
                     punchOutTime = timeString,
                     punchOutImageUrl = imageUrl,
+                    punchSource = punchSource,
+                    googleEmail = googleEmail,
+                    deviceIdHash = deviceIdHash,
                     isSynced = true
                 )
                 

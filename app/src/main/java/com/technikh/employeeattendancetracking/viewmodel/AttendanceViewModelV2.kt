@@ -267,7 +267,15 @@ class AttendanceViewModelV2(
         return attendanceDao.getLastRecordFlow(employeeId)
     }
 
-    fun punchIn(employeeId: String, selfiePath: String?, systemTimeMillis: Long, employeeTimeMillis: Long) {
+    fun punchIn(
+        employeeId: String, 
+        selfiePath: String?, 
+        systemTimeMillis: Long, 
+        employeeTimeMillis: Long,
+        punchSource: String = "shared_device",
+        googleEmail: String? = null,
+        deviceIdHash: String? = null
+    ) {
         android.util.Log.d("V2-PUNCH", "punchIn called for $employeeId, selfiePath=$selfiePath")
         viewModelScope.launch {
             val normalizedSystemTime = normalizeToMinute(systemTimeMillis)
@@ -280,7 +288,7 @@ class AttendanceViewModelV2(
             // Sync to Supabase if repository is available
             repository?.let { repo ->
                 android.util.Log.d("V2-PUNCH", "Calling syncAttendanceToSupabase...")
-                repo.syncAttendanceToSupabase(employeeId, "IN", employeeTimeMillis, selfiePath)
+                repo.syncAttendanceToSupabase(employeeId, "IN", employeeTimeMillis, selfiePath, punchSource, googleEmail, deviceIdHash)
                 android.util.Log.d("V2-PUNCH", "syncAttendanceToSupabase completed")
             } ?: run {
                 android.util.Log.w("V2-PUNCH", "Repository is NULL - cannot sync to Supabase!")
@@ -291,7 +299,18 @@ class AttendanceViewModelV2(
         }
     }
 
-    fun punchOut(employeeId: String, reason: String, isOfficeWork: Boolean, workReason: String?, systemTimeMillis: Long, employeeTimeMillis: Long, selfiePath: String?) {
+    fun punchOut(
+        employeeId: String, 
+        reason: String, 
+        isOfficeWork: Boolean, 
+        workReason: String?, 
+        systemTimeMillis: Long, 
+        employeeTimeMillis: Long, 
+        selfiePath: String?,
+        punchSource: String = "shared_device",
+        googleEmail: String? = null,
+        deviceIdHash: String? = null
+    ) {
         viewModelScope.launch {
             val normalizedSystemTime = normalizeToMinute(systemTimeMillis)
             val normalizedEmployeeTime = normalizeToMinute(employeeTimeMillis)
@@ -300,7 +319,7 @@ class AttendanceViewModelV2(
             attendanceDao.insert(AttendanceRecord(employeeId = employeeId, punchType = "OUT", systemTimeMillis = systemTimeMillis, employeeTimeMillis = employeeTimeMillis, isManuallyEdited = isManuallyEdited, reason = reason, isOfficeWork = isOfficeWork, workReason = workReason, selfiePath = selfiePath))
             
             // Sync to Supabase if repository is available
-            repository?.syncAttendanceToSupabase(employeeId, "OUT", employeeTimeMillis, selfiePath)
+            repository?.syncAttendanceToSupabase(employeeId, "OUT", employeeTimeMillis, selfiePath, punchSource, googleEmail, deviceIdHash)
             
             if (isOfficeWork && !workReason.isNullOrBlank()) saveNewReason(workReason)
             _isPunchedIn.value = false

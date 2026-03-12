@@ -14,6 +14,9 @@ data class SupabaseAttendanceRecord(
     @SerialName("punch_out_time") val punchOutTime: String? = null,
     @SerialName("image_url") val imageUrl: String? = null,
     @SerialName("punch_out_image_url") val punchOutImageUrl: String? = null,
+    @SerialName("punch_source") val punchSource: String = "shared_device",
+    @SerialName("google_email") val googleEmail: String? = null,
+    @SerialName("device_id_hash") val deviceIdHash: String? = null,
     @SerialName("is_synced") val isSynced: Boolean = true
 )
 
@@ -25,5 +28,8 @@ data class SupabaseAttendanceRecord(
 data class PunchOutUpdate(
     @SerialName("punch_out_time") val punchOutTime: String,
     @SerialName("punch_out_image_url") val punchOutImageUrl: String? = null,
+    @SerialName("punch_source") val punchSource: String = "shared_device",
+    @SerialName("google_email") val googleEmail: String? = null,
+    @SerialName("device_id_hash") val deviceIdHash: String? = null,
     @SerialName("is_synced") val isSynced: Boolean = true
 )

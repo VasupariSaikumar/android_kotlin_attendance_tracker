@@ -117,7 +117,11 @@ fun MainAttendanceScreen(
     var pendingAction by remember { mutableStateOf("") }
 
     var tempSelfiePath by remember { mutableStateOf<String?>(null) }
+    var tempGoogleEmail by remember { mutableStateOf<String?>(null) }
+    var tempDeviceIdHash by remember { mutableStateOf<String?>(null) }
     var isCapturingPhoto by remember { mutableStateOf(false) }
+
+    var currentMode by remember { mutableStateOf("SHARED_DEVICE") }
 
 
     var hasCameraPermission by remember {
@@ -223,19 +227,64 @@ fun MainAttendanceScreen(
         }
     }
 
-    Scaffold { padding ->
-        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-
-            if (hasCameraPermission) {
-
-                val size = if (settingsManager.showCameraPreview) 150.dp else 1.dp
-                val alpha = if (settingsManager.showCameraPreview) 1f else 0f
-
-                AndroidView(
-                    factory = { ctx -> PreviewView(ctx).apply { controller = cameraController } },
-                    modifier = Modifier.size(size).alpha(alpha).align(Alignment.TopCenter)
+    Scaffold(
+        topBar = {
+            TabRow(
+                selectedTabIndex = if (currentMode == "SHARED_DEVICE") 0 else 1,
+                containerColor = Color(0xFF1E1E2E), // Match dark theme
+                contentColor = Color.White
+            ) {
+                Tab(
+                    selected = currentMode == "SHARED_DEVICE",
+                    onClick = { currentMode = "SHARED_DEVICE" },
+                    text = { Text("Shared Device") }
+                )
+                Tab(
+                    selected = currentMode == "PERSONAL_PHONE",
+                    onClick = { currentMode = "PERSONAL_PHONE" },
+                    text = { Text("Personal Phone") }
                 )
             }
+        }
+    ) { padding ->
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+
+            if (currentMode == "PERSONAL_PHONE") {
+                PersonalPhonePunchScreen(
+                    employeeId = employeeId,
+                    viewModel = viewModelV2,
+                    onPunchIn = { selfiePath, googleEmail, deviceIdHash ->
+                        viewModelV2.punchIn(
+                            employeeId = employeeId,
+                            selfiePath = selfiePath,
+                            systemTimeMillis = System.currentTimeMillis(),
+                            employeeTimeMillis = selectedTimeMillis,
+                            punchSource = "personal_phone",
+                            googleEmail = googleEmail,
+                            deviceIdHash = deviceIdHash
+                        )
+                        Toast.makeText(context, "Punch In Successful!", Toast.LENGTH_SHORT).show()
+                        onNavigateHome()
+                    },
+                    onPunchOut = { selfiePath, googleEmail, deviceIdHash ->
+                        tempSelfiePath = selfiePath
+                        tempGoogleEmail = googleEmail
+                        tempDeviceIdHash = deviceIdHash
+                        pendingAction = "OUT"
+                        showPunchOutDialog = true
+                    }
+                )
+            } else {
+                if (hasCameraPermission) {
+
+                    val size = if (settingsManager.showCameraPreview) 150.dp else 1.dp
+                    val alpha = if (settingsManager.showCameraPreview) 1f else 0f
+
+                    AndroidView(
+                        factory = { ctx -> PreviewView(ctx).apply { controller = cameraController } },
+                        modifier = Modifier.size(size).alpha(alpha).align(Alignment.TopCenter)
+                    )
+                }
 
             // --- CONNECTION STATUS INDICATOR ---
             Row(
@@ -317,7 +366,8 @@ fun MainAttendanceScreen(
                 ) {
                     Text("View My Reports")
                 }
-            }
+            } // End of Column
+            } // End of SHARED_DEVICE mode else block
 
             FloatingActionButton(
                 onClick = onNavigateHome,
@@ -361,7 +411,19 @@ fun MainAttendanceScreen(
                 PunchOutReasonDialog(
                     onDismiss = { showPunchOutDialog = false },
                     onConfirm = { reason, isOffice, workReason ->
-                        viewModelV2.punchOut(employeeId, reason, isOffice, workReason, systemTimeMillis = System.currentTimeMillis(), employeeTimeMillis = selectedTimeMillis, tempSelfiePath)
+                        val source = if (currentMode == "PERSONAL_PHONE") "personal_phone" else "shared_device"
+                        viewModelV2.punchOut(
+                            employeeId = employeeId, 
+                            reason = reason, 
+                            isOfficeWork = isOffice, 
+                            workReason = workReason, 
+                            systemTimeMillis = System.currentTimeMillis(), 
+                            employeeTimeMillis = selectedTimeMillis, 
+                            selfiePath = tempSelfiePath,
+                            punchSource = source,
+                            googleEmail = tempGoogleEmail,
+                            deviceIdHash = tempDeviceIdHash
+                        )
                         showPunchOutDialog = false
                         Toast.makeText(context, "Punch Out Successful!", Toast.LENGTH_SHORT).show()
                         onNavigateHome()
