@@ -254,11 +254,12 @@ fun MainAttendanceScreen(
                     employeeId = employeeId,
                     viewModel = viewModelV2,
                     onPunchIn = { selfiePath, googleEmail, deviceIdHash ->
+                        val currentMillis = System.currentTimeMillis()
                         viewModelV2.punchIn(
                             employeeId = employeeId,
                             selfiePath = selfiePath,
-                            systemTimeMillis = System.currentTimeMillis(),
-                            employeeTimeMillis = selectedTimeMillis,
+                            systemTimeMillis = currentMillis,
+                            employeeTimeMillis = currentMillis,
                             punchSource = "personal_phone",
                             googleEmail = googleEmail,
                             deviceIdHash = deviceIdHash
@@ -271,6 +272,7 @@ fun MainAttendanceScreen(
                         tempGoogleEmail = googleEmail
                         tempDeviceIdHash = deviceIdHash
                         pendingAction = "OUT"
+                        selectedTimeMillis = System.currentTimeMillis() // Capture live time for out
                         showPunchOutDialog = true
                     }
                 )
