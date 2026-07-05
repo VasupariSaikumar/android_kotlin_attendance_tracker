@@ -18,9 +18,9 @@ import com.technikh.employeeattendancetracking.ui.screens.reports.GlobalReportsS
 import com.technikh.employeeattendancetracking.viewmodel.AttendanceViewModel
 
 class MainActivity : FragmentActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
+    override fun onCreate(savedInstanceState: Bundle?) {//onCreate starts the app
         super.onCreate(savedInstanceState)
-        setContent {
+        setContent {//This uses jetpackCompose to render screens
             var currentScreen by remember { mutableStateOf("login") }
             var currentEmployeeId by remember { mutableStateOf("") }
             val context = LocalContext.current

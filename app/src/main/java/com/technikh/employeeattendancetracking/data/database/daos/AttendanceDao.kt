@@ -29,14 +29,14 @@ interface AttendanceDao {
     @Query("SELECT * FROM attendance_records ORDER BY employeeTimeMillis DESC")
     fun getAllRecordsFlow(): Flow<List<AttendanceRecord>>
 
-    @Insert
+    @Insert 
     suspend fun insert(record: AttendanceRecord)
 
     @Query("SELECT * FROM attendance_records WHERE employeeId = :employeeId ORDER BY employeeTimeMillis DESC")
     suspend fun getAttendanceByEmployee(employeeId: String): List<AttendanceRecord>
 
     @Query("SELECT * FROM attendance_records WHERE employeeId = :employeeId ORDER BY employeeTimeMillis DESC")
-    fun getDailyAttendance(employeeId: String): Flow<List<AttendanceRecord>>
+    fun getDailyAttendance(employeeId: String): Flow<List <AttendanceRecord>>
 
     @Query("""
         SELECT 

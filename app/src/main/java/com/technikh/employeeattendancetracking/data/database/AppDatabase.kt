@@ -17,7 +17,7 @@ import com.technikh.employeeattendancetracking.data.database.entities.OfficeWork
 
 
 @Database(
-    entities = [Employee::class, AttendanceRecord::class, OfficeWorkReason::class],
+    entities = [Employee::class, AttendanceRecord::class, OfficeWorkReason::class],//the 3 classes are defined tables
     version = 2,
     exportSchema = false
 )
@@ -26,7 +26,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun employeeDao(): EmployeeDao
     abstract fun attendanceDao(): AttendanceDao
     abstract fun workReasonDao(): WorkReasonDao
-
+//The top 3 functions provide local database connection
     companion object {
         @Volatile
         private var INSTANCE: AppDatabase? = null

@@ -8,10 +8,10 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="PLACEHOLDER" />
-                  <option name="mobileSdkAppId" value="" />
-                  <option name="projectId" value="" />
-                  <option name="projectNumber" value="" />
+                  <option name="appId" value="com.technikh.employeeattendancetracking" />
+                  <option name="mobileSdkAppId" value="1:1022003008492:android:cfcddf7f9503788b9b26c9" />
+                  <option name="projectId" value="attendanceapp-ff4c2" />
+                  <option name="projectNumber" value="1022003008492" />
                 </ConnectionSetting>
               </option>
               <option name="signal" value="SIGNAL_UNSPECIFIED" />
